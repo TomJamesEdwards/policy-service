@@ -66,6 +66,11 @@ public sealed class Policy
             return Result.Failure<Policy>(
                 PolicyErrors.StartDateTooFarInAdvance);
         }
+        if (policyholders.Count < 1 || policyholders.Count > 3)
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.InvalidPolicyholderCount);
+        }
         var endDate = startDate.AddYears(1).AddDays(-1);
 
         var payment = new Payment(

@@ -5,39 +5,17 @@ namespace PolicyService.Domain.Tests.Policies;
 
 public sealed class PolicyTests
 {
+
     [Fact]
     public void Sell_WithValidDetails_CreatesOneYearPolicyAndOriginalPayment()
     {
         var today = new DateOnly(2026, 9, 1);
         var startDate = new DateOnly(2026, 10, 1);
 
-        var policyholder = new Policyholder(
-            firstName: "Anne",
-            lastName: "Example",
-            dateOfBirth: new DateOnly(1990, 4, 12)
-        );
-
-        var property = new InsuredProperty(
-            addressLine1: "1 Example Street",
-            addressLine2: null,
-            addressLine3: null,
-            postcode: "CH7 1AA"
-        );
-
-        var result = Policy.Sell(
-            reference: "HH-2026-000001",
-            type: PolicyType.Household,
-            startDate: startDate,
-            amount: 350.50m,
-            autoRenew: true,
-            hasClaims: false,
-            policyholders: [policyholder],
-            property: property,
-            paymentReference: "PAY-000001",
-            paymentType: PaymentType.DirectDebit,
-            today: today
-        );
-
+        var result = new PolicySaleBuilder()
+            .WithToday(today)
+            .WithStartDate(startDate)
+            .Sell();
         Assert.True(result.IsSuccess);
 
         var policy = result.Value;
@@ -58,31 +36,11 @@ public sealed class PolicyTests
     public void Sell_WhenStartDateIsMoreThanSixtyDaysAway_ReturnsValidationFailure()
     {
         var today = new DateOnly(2026, 9, 1);
-        var startDate = today.AddDays(61);
 
-        var policyholder = new Policyholder(
-            firstName: "Anne",
-            lastName: "Example",
-            dateOfBirth: new DateOnly(1990, 4, 12));
-
-        var property = new InsuredProperty(
-            addressLine1: "1 Example Street",
-            addressLine2: null,
-            addressLine3: null,
-            postcode: "CH7 1AA");
-
-        var result = Policy.Sell(
-            reference: "HH-2026-000002",
-            type: PolicyType.Household,
-            startDate: startDate,
-            amount: 420.50m,
-            autoRenew: true,
-            hasClaims: false,
-            policyholders: [policyholder],
-            property: property,
-            paymentReference: "PAY-000002",
-            paymentType: PaymentType.DirectDebit,
-            today: today);
+        var result = new PolicySaleBuilder()
+            .WithToday(today)
+            .WithStartDate(today.AddDays(61))
+            .Sell();
 
         Assert.True(result.IsFailure);
 
@@ -101,33 +59,64 @@ public sealed class PolicyTests
     public void Sell_WhenStartDateIsExactlySixtyDaysAway_Succeeds()
     {
         var today = new DateOnly(2026, 9, 1);
-        var startDate = today.AddDays(60);
 
-        var policyholder = new Policyholder(
-            firstName: "Anne",
-            lastName: "Example",
-            dateOfBirth: new DateOnly(1990, 4, 12));
-
-        var property = new InsuredProperty(
-            addressLine1: "1 Example Street",
-            addressLine2: null,
-            addressLine3: null,
-            postcode: "CH7 1AA");
-
-        var result = Policy.Sell(
-            reference: "HH-2026-000003",
-            type: PolicyType.Household,
-            startDate: startDate,
-            amount: 420.50m,
-            autoRenew: true,
-            hasClaims: false,
-            policyholders: [policyholder],
-            property: property,
-            paymentReference: "PAY-000003",
-            paymentType: PaymentType.DirectDebit,
-            today: today);
+        var result = new PolicySaleBuilder()
+            .WithToday(today)
+            .WithStartDate(today.AddDays(60))
+            .Sell();
 
         Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Sell_WithNoPolicyholders_ReturnsValidationFailure()
+    {
+        var result = new PolicySaleBuilder()
+            .WithPolicyholders()
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.policyholders.invalid_count",
+            error.Code);
+
+        Assert.Equal(
+            "A policy must have between 1 and 3 policyholders.",
+            error.Message);
+    }
+
+    [Fact]
+    public void Sell_WithThreePolicyholders_Succeeds()
+    {
+        var result = new PolicySaleBuilder()
+            .WithPolicyholderCount(3)
+            .Sell();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value.Policyholders.Count);
+    }
+
+    [Fact]
+    public void Sell_WithFourPolicyholders_ReturnsValidationFailure()
+    {
+        var result = new PolicySaleBuilder()
+            .WithPolicyholderCount(4)
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.policyholders.invalid_count",
+            error.Code);
+
+        Assert.Equal(
+            "A policy must have between 1 and 3 policyholders.",
+            error.Message);
     }
 
 }
