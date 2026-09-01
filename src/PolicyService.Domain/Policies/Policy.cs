@@ -61,6 +61,11 @@ public sealed class Policy
         PaymentType paymentType,
         DateOnly today)
     {
+        if (startDate > today.AddDays(60))
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.StartDateTooFarInAdvance);
+        }
         var endDate = startDate.AddYears(1).AddDays(-1);
 
         var payment = new Payment(
