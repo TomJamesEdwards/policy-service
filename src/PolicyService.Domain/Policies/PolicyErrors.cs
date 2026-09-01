@@ -1,4 +1,3 @@
-using System.Security.Permissions;
 using PolicyService.Domain.Common;
 
 namespace PolicyService.Domain.Policies;
