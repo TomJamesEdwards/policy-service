@@ -119,4 +119,81 @@ public sealed class PolicyTests
             error.Message);
     }
 
+    [Fact]
+    public void Sell_WhenPolicyholderIsUnderSixteenOnStartDate_ReturnsValidationFailure()
+    {
+        var startDate = new DateOnly(2026, 10, 1);
+
+        var underagePolicyholder = new Policyholder(
+            firstName: "Alex",
+            lastName: "Example",
+            dateOfBirth: new DateOnly(2010, 10, 2));
+
+        var result = new PolicySaleBuilder()
+            .WithStartDate(startDate)
+            .WithPolicyholders(underagePolicyholder)
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.policyholders.minimum_age",
+            error.Code);
+
+        Assert.Equal(
+            "All policyholders must be at least 16 on the policy start date.",
+            error.Message);
+    }
+
+    [Fact]
+    public void Sell_WhenPolicyholderTurnsSixteenOnStartDate_Succeeds()
+    {
+        var startDate = new DateOnly(2026, 10, 1);
+
+        var policyholder = new Policyholder(
+            firstName: "Anne",
+            lastName: "Example",
+            dateOfBirth: new DateOnly(2010, 10, 1));
+
+        var result = new PolicySaleBuilder()
+            .WithStartDate(startDate)
+            .WithPolicyholders(policyholder)
+            .Sell();
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Sell_WhenAnyPolicyholderIsUnderSixteen_ReturnsValidationFailure()
+    {
+        var startDate = new DateOnly(2026, 10, 1);
+
+        var eligiblePolicyholder = new Policyholder(
+            firstName: "Anne",
+            lastName: "Example",
+            dateOfBirth: new DateOnly(1990, 4, 12));
+
+        var underagePolicyholder = new Policyholder(
+            firstName: "Bob",
+            lastName: "Example",
+            dateOfBirth: new DateOnly(2010, 10, 2));
+
+        var result = new PolicySaleBuilder()
+            .WithStartDate(startDate)
+            .WithPolicyholders(
+                eligiblePolicyholder,
+                underagePolicyholder)
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.policyholders.minimum_age",
+            error.Code);
+    }
+
 }

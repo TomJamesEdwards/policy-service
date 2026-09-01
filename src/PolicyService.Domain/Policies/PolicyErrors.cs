@@ -11,4 +11,8 @@ internal static class PolicyErrors
     public static DomainError InvalidPolicyholderCount { get; } = new(
         Code: "policy.policyholders.invalid_count",
         Message: "A policy must have between 1 and 3 policyholders.");
+
+    public static DomainError PolicyholderBelowMinimumAge { get; } = new(
+        Code: "policy.policyholders.minimum_age",
+        Message: "All policyholders must be at least 16 on the policy start date.");
 }

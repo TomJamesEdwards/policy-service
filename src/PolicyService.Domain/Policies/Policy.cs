@@ -4,6 +4,7 @@ namespace PolicyService.Domain.Policies;
 
 public sealed class Policy
 {
+    private const int MinimumPolicyholderAge = 16;
     private Policy(
         string reference,
         PolicyType type,
@@ -70,6 +71,15 @@ public sealed class Policy
         {
             return Result.Failure<Policy>(
                 PolicyErrors.InvalidPolicyholderCount);
+        }
+        var latestEligibleDateOfBirth =
+            startDate.AddYears(-MinimumPolicyholderAge);
+
+        if (policyholders.Any(policyholder =>
+                policyholder.DateOfBirth > latestEligibleDateOfBirth))
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.PolicyholderBelowMinimumAge);
         }
         var endDate = startDate.AddYears(1).AddDays(-1);
 
