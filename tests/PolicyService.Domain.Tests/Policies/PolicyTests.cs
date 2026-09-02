@@ -216,4 +216,30 @@ public sealed class PolicyTests
             error.Message);
     }
 
+    [Fact]
+    public void Sell_WithValidCardNumber_ReturnsSuccessfulPolicy()
+    {
+        var result = new PolicySaleBuilder()
+            .WithCardPayment("4111111111111111")
+            .Sell();
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Sell_WithInvalidCardNumber_ReturnsPaymentValidationFailure()
+    {
+        var result = new PolicySaleBuilder()
+            .WithCardPayment("4111111111111112")
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "payment.card_number.invalid",
+            error.Code);
+    }
+
 }

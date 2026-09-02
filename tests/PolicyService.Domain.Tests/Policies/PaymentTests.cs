@@ -52,4 +52,40 @@ public sealed class PaymentTests
             "Payment reference is required.",
             error.Message);
     }
+
+    [Fact]
+    public void Create_WhenCardNumberFailsLuhnValidation_ReturnsValidationFailure()
+    {
+        var result = Payment.Create(
+            reference: "PAY-000001",
+            type: PaymentType.Card,
+            amount: 250m,
+            cardNumber: "4111111111111112");
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "payment.card_number.invalid",
+            error.Code);
+
+        Assert.Equal(
+            "Card number is invalid.",
+            error.Message);
+    }
+
+    [Fact]
+    public void Create_WhenCardNumberPassesLuhnValidation_ReturnsSuccessfulPayment()
+    {
+        var result = Payment.Create(
+            reference: "PAY-000001",
+            type: PaymentType.Card,
+            amount: 250m,
+            cardNumber: "4111111111111111");
+
+        Assert.True(result.IsSuccess);
+
+        Assert.Equal(PaymentType.Card, result.Value.Type);
+    }
 }

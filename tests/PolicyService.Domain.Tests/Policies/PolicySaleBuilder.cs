@@ -25,6 +25,11 @@ internal sealed class PolicySaleBuilder
 
 
     private decimal _amount = 350.50m;
+
+    private PaymentType _paymentType = PaymentType.DirectDebit;
+
+    private string? _cardNumber;
+
     public PolicySaleBuilder WithToday(DateOnly today)
     {
         _today = today;
@@ -67,6 +72,14 @@ internal sealed class PolicySaleBuilder
         return this;
     }
 
+    public PolicySaleBuilder WithCardPayment(string cardNumber)
+    {
+        _paymentType = PaymentType.Card;
+        _cardNumber = cardNumber;
+
+        return this;
+    }
+
     public Result<Policy> Sell() =>
         Policy.Sell(
             reference: "HH-2026-000001",
@@ -78,6 +91,7 @@ internal sealed class PolicySaleBuilder
             policyholders: _policyholders,
             property: _insuredProperty,
             paymentReference: "PAY-000001",
-            paymentType: PaymentType.DirectDebit,
-            today: _today);
+            paymentType: _paymentType,
+            today: _today,
+            cardNumber: _cardNumber);
 }

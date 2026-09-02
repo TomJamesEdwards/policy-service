@@ -60,7 +60,8 @@ public sealed class Policy
         InsuredProperty property,
         string paymentReference,
         PaymentType paymentType,
-        DateOnly today)
+        DateOnly today,
+        string? cardNumber = null)
     {
         if (startDate > today.AddDays(60))
         {
@@ -86,7 +87,8 @@ public sealed class Policy
         var paymentResult = Payment.Create(
             paymentReference,
             paymentType,
-            amount);
+            amount,
+            cardNumber);
 
         if (paymentResult.IsFailure)
         {

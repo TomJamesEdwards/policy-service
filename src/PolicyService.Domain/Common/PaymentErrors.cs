@@ -11,4 +11,8 @@ internal static class PaymentErrors
     internal static readonly DomainError ReferenceRequired = new(
     "payment.reference.required",
     "Payment reference is required.");
+
+    internal static readonly DomainError InvalidCardNumber = new(
+    "payment.card_number.invalid",
+    "Card number is invalid.");
 }

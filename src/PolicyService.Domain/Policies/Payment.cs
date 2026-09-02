@@ -23,7 +23,8 @@ public sealed class Payment
     public static Result<Payment> Create(
         string? reference,
         PaymentType type,
-        decimal amount)
+        decimal amount,
+        string? cardNumber = null)
     {
         if (string.IsNullOrWhiteSpace(reference))
         {
@@ -35,6 +36,13 @@ public sealed class Payment
         {
             return Result.Failure<Payment>(
                 PaymentErrors.AmountMustBePositive);
+        }
+
+        if (type == PaymentType.Card
+            && !CardNumberValidator.IsValid(cardNumber))
+        {
+            return Result.Failure<Payment>(
+                PaymentErrors.InvalidCardNumber);
         }
 
         return Result.Success(
