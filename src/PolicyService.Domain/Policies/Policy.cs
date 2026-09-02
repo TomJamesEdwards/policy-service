@@ -83,10 +83,16 @@ public sealed class Policy
         }
         var endDate = startDate.AddYears(1).AddDays(-1);
 
-        var payment = new Payment(
+        var paymentResult = Payment.Create(
             paymentReference,
             paymentType,
             amount);
+
+        if (paymentResult.IsFailure)
+        {
+            return Result.Failure<Policy>(
+                paymentResult.Errors);
+        }
 
         var policy = new Policy(
             reference,
@@ -98,7 +104,7 @@ public sealed class Policy
             hasClaims,
             policyholders,
             property,
-            payment);
+            paymentResult.Value);
 
         return Result.Success(policy);
     }

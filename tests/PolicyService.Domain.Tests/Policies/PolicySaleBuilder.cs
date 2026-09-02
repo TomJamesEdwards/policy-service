@@ -23,6 +23,8 @@ internal sealed class PolicySaleBuilder
              addressLine3: null,
              postcode: "CH7 1AA").Value;
 
+
+    private decimal _amount = 350.50m;
     public PolicySaleBuilder WithToday(DateOnly today)
     {
         _today = today;
@@ -59,12 +61,18 @@ internal sealed class PolicySaleBuilder
         return this;
     }
 
+    public PolicySaleBuilder WithAmount(decimal amount)
+    {
+        _amount = amount;
+        return this;
+    }
+
     public Result<Policy> Sell() =>
         Policy.Sell(
             reference: "HH-2026-000001",
             type: PolicyType.Household,
             startDate: _startDate,
-            amount: 350.50m,
+            amount: _amount,
             autoRenew: true,
             hasClaims: false,
             policyholders: _policyholders,

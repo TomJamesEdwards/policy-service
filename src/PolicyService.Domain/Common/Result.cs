@@ -12,6 +12,17 @@ public static class Result
             Array.Empty<DomainError>());
     }
 
+    public static Result<T> Failure<T>(
+    IReadOnlyCollection<DomainError> errors)
+    where T : class
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+
+        return new Result<T>(
+            value: null,
+            errors);
+    }
+
     public static Result<T> Failure<T>(params DomainError[] errors)
         where T : class
     {

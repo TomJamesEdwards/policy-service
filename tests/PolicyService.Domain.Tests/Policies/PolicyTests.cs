@@ -196,4 +196,24 @@ public sealed class PolicyTests
             error.Code);
     }
 
+    [Fact]
+    public void Sell_WhenPaymentAmountIsZero_ReturnsValidationFailure()
+    {
+        var result = new PolicySaleBuilder()
+            .WithAmount(0m)
+            .Sell();
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "payment.amount.must_be_positive",
+            error.Code);
+
+        Assert.Equal(
+            "Payment amount must be greater than zero.",
+            error.Message);
+    }
+
 }
