@@ -28,4 +28,28 @@ public sealed class PaymentTests
             "Payment amount must be greater than zero.",
             error.Message);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Create_WhenReferenceIsBlank_ReturnsValidationFailure(
+    string reference)
+    {
+        var result = Payment.Create(
+            reference,
+            PaymentType.DirectDebit,
+            250m);
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "payment.reference.required",
+            error.Code);
+
+        Assert.Equal(
+            "Payment reference is required.",
+            error.Message);
+    }
 }

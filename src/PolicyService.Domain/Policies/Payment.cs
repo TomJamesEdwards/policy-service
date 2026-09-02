@@ -21,10 +21,16 @@ public sealed class Payment
     public decimal Amount { get; }
 
     public static Result<Payment> Create(
-        string reference,
+        string? reference,
         PaymentType type,
         decimal amount)
     {
+        if (string.IsNullOrWhiteSpace(reference))
+        {
+            return Result.Failure<Payment>(
+                PaymentErrors.ReferenceRequired);
+        }
+
         if (amount <= 0m)
         {
             return Result.Failure<Payment>(
