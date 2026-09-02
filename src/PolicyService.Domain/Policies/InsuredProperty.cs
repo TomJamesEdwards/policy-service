@@ -1,8 +1,10 @@
+using PolicyService.Domain.Common;
+
 namespace PolicyService.Domain.Policies;
 
 public sealed class InsuredProperty
 {
-    public InsuredProperty(
+    private InsuredProperty(
         string addressLine1,
         string? addressLine2,
         string? addressLine3,
@@ -21,4 +23,30 @@ public sealed class InsuredProperty
     public string? AddressLine3 { get; }
 
     public string Postcode { get; }
+
+    public static Result<InsuredProperty> Create(
+        string? addressLine1,
+        string? addressLine2,
+        string? addressLine3,
+        string? postcode)
+    {
+        if (string.IsNullOrWhiteSpace(addressLine1))
+        {
+            return Result.Failure<InsuredProperty>(
+                InsuredPropertyErrors.AddressLineOneRequired);
+        }
+
+        if (string.IsNullOrWhiteSpace(postcode))
+        {
+            return Result.Failure<InsuredProperty>(
+                InsuredPropertyErrors.PostcodeRequired);
+        }
+
+        return Result.Success(
+            new InsuredProperty(
+                addressLine1,
+                addressLine2,
+                addressLine3,
+                postcode ?? string.Empty));
+    }
 }

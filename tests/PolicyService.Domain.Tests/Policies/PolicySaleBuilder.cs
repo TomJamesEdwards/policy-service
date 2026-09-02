@@ -16,6 +16,13 @@ internal sealed class PolicySaleBuilder
             dateOfBirth: new DateOnly(1990, 4, 12))
     ];
 
+    private readonly InsuredProperty _insuredProperty =
+         InsuredProperty.Create(
+             addressLine1: "1 Test Street",
+             addressLine2: null,
+             addressLine3: null,
+             postcode: "CH7 1AA").Value;
+
     public PolicySaleBuilder WithToday(DateOnly today)
     {
         _today = today;
@@ -61,11 +68,7 @@ internal sealed class PolicySaleBuilder
             autoRenew: true,
             hasClaims: false,
             policyholders: _policyholders,
-            property: new InsuredProperty(
-                addressLine1: "1 Example Street",
-                addressLine2: null,
-                addressLine3: null,
-                postcode: "CH7 1AA"),
+            property: _insuredProperty,
             paymentReference: "PAY-000001",
             paymentType: PaymentType.DirectDebit,
             today: _today);
