@@ -10,7 +10,7 @@ namespace PolicyService.IntegrationTests.Persistence;
 public sealed class PolicyDbContextTests
 {
     [Fact]
-    public async Task SaveAndReload_WithValidPolicy_PreservesAggregate()
+    public async Task MigrateAndReload_WithValidPolicy_PreservesAggregate()
     {
         await using var connection = new SqliteConnection(
             "Data Source=:memory:");
@@ -23,7 +23,7 @@ public sealed class PolicyDbContextTests
 
         await using var context = new PolicyDbContext(options);
 
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
 
         var policy = PolicyTestData.CreateValid();
 
