@@ -1,7 +1,6 @@
 using PolicyService.Application.Abstractions.Persistence;
 using PolicyService.Application.Policies.GetByReference;
 using PolicyService.Domain.Policies;
-using Xunit;
 
 namespace PolicyService.Application.Tests.Policies.GetByReference;
 

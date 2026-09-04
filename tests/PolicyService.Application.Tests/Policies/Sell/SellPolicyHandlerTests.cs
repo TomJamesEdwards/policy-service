@@ -1,7 +1,6 @@
-using PolicyService.Application.Abstractions.Persistence;
 using PolicyService.Application.Policies.Sell;
 using PolicyService.Domain.Policies;
-using Xunit;
+using PolicyService.Application.Tests.Common;
 
 namespace PolicyService.Application.Tests.Policies.Sell;
 
@@ -31,57 +30,6 @@ public sealed class SellPolicyHandlerTests
             PaymentReference: "PAY-000001",
             PaymentType: PaymentType.DirectDebit,
             CardNumber: null);
-    }
-
-    private sealed class StubPolicyRepository : IPolicyRepository
-    {
-        private readonly bool _referenceExists;
-
-        internal StubPolicyRepository(bool referenceExists)
-        {
-            _referenceExists = referenceExists;
-        }
-
-        internal Policy? AddedPolicy { get; private set; }
-
-        internal bool AddWasCalled => AddedPolicy is not null;
-
-        public Task<Policy?> GetByReferenceAsync(
-            string reference,
-            CancellationToken cancellationToken)
-        {
-            return Task.FromResult<Policy?>(null);
-        }
-
-        public Task<bool> ReferenceExistsAsync(
-            string reference,
-            CancellationToken cancellationToken)
-        {
-            return Task.FromResult(_referenceExists);
-        }
-
-        public Task AddAsync(
-            Policy policy,
-            CancellationToken cancellationToken)
-        {
-            AddedPolicy = policy;
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class FixedTimeProvider : TimeProvider
-    {
-        private readonly DateTimeOffset _utcNow;
-
-        internal FixedTimeProvider(DateTimeOffset utcNow)
-        {
-            _utcNow = utcNow;
-        }
-
-        public override DateTimeOffset GetUtcNow()
-        {
-            return _utcNow;
-        }
     }
 
     [Fact]

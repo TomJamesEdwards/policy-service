@@ -1,5 +1,4 @@
 using PolicyService.Domain.Policies;
-using Xunit;
 
 namespace PolicyService.Domain.Tests.Policies;
 
