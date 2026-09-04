@@ -47,6 +47,6 @@ public sealed class InsuredProperty
                 addressLine1,
                 addressLine2,
                 addressLine3,
-                postcode ?? string.Empty));
+                postcode));
     }
 }

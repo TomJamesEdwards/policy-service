@@ -5,6 +5,14 @@ namespace PolicyService.Domain.Policies;
 public sealed class Policy
 {
     private const int MinimumPolicyholderAge = 16;
+
+    private readonly List<Policyholder> _policyholders = [];
+    private readonly List<Payment> _payments = [];
+
+    private Policy()
+    {
+    }
+
     private Policy(
         string reference,
         PolicyType type,
@@ -24,30 +32,33 @@ public sealed class Policy
         Amount = amount;
         AutoRenew = autoRenew;
         HasClaims = hasClaims;
-        Policyholders = policyholders.ToList().AsReadOnly();
         Property = property;
-        Payments = new List<Payment> { payment }.AsReadOnly();
+
+        _policyholders.AddRange(policyholders);
+        _payments.Add(payment);
     }
 
-    public string Reference { get; }
+    public string Reference { get; private set; } = null!;
 
-    public PolicyType Type { get; }
+    public PolicyType Type { get; private set; }
 
-    public DateOnly StartDate { get; }
+    public DateOnly StartDate { get; private set; }
 
-    public DateOnly EndDate { get; }
+    public DateOnly EndDate { get; private set; }
 
-    public decimal Amount { get; }
+    public decimal Amount { get; private set; }
 
-    public bool AutoRenew { get; }
+    public bool AutoRenew { get; private set; }
 
-    public bool HasClaims { get; }
+    public bool HasClaims { get; private set; }
 
-    public IReadOnlyList<Policyholder> Policyholders { get; }
+    public IReadOnlyList<Policyholder> Policyholders =>
+        _policyholders.AsReadOnly();
 
-    public InsuredProperty Property { get; }
+    public InsuredProperty Property { get; private set; } = null!;
 
-    public IReadOnlyList<Payment> Payments { get; }
+    public IReadOnlyList<Payment> Payments =>
+        _payments.AsReadOnly();
 
     public static Result<Policy> Sell(
         string reference,
