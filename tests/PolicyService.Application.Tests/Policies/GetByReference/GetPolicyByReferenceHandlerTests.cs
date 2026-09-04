@@ -14,11 +14,26 @@ public sealed class GetPolicyByReferenceHandlerTests
         {
             _policy = policy;
         }
+
         public Task<Policy?> GetByReferenceAsync(
-    string reference,
-    CancellationToken cancellationToken)
+            string reference,
+            CancellationToken cancellationToken)
         {
             return Task.FromResult(_policy);
+        }
+
+        public Task<bool> ReferenceExistsAsync(
+            string reference,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(false);
+        }
+
+        public Task AddAsync(
+            Policy policy,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
     private static Policy CreatePolicy()
