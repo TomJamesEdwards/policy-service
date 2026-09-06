@@ -64,7 +64,7 @@ internal sealed class PolicyServiceApiFactory
 
             services.AddSingleton<TimeProvider>(
                 new FixedTimeProvider(
-                    new DateTimeOffset( 2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+                    new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
         });
     }
 

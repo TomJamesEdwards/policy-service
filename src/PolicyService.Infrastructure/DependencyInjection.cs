@@ -17,7 +17,7 @@ public static class DependencyInjection
 
         services.AddDbContext<PolicyDbContext>(options =>
             options.UseSqlite(connectionString));
-        
+
         services
             .AddHealthChecks()
             .AddDbContextCheck<PolicyDbContext>(
