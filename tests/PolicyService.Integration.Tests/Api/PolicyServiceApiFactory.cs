@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PolicyService.Infrastructure.Persistence;
 using PolicyService.Domain.Policies;
+using PolicyService.IntegrationTests.Common;
 
 namespace PolicyService.IntegrationTests.Api;
 
@@ -58,6 +59,12 @@ internal sealed class PolicyServiceApiFactory
 
             services.AddDbContext<PolicyDbContext>(options =>
                 options.UseSqlite(_connection));
+
+            services.RemoveAll<TimeProvider>();
+
+            services.AddSingleton<TimeProvider>(
+                new FixedTimeProvider(
+                    new DateTimeOffset( 2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
         });
     }
 

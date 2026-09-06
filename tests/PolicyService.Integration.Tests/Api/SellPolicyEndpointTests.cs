@@ -1,0 +1,175 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Xunit;
+
+namespace PolicyService.IntegrationTests.Api;
+
+public sealed class SellPolicyEndpointTests
+{
+    private static object CreateRequest(
+        string reference = "HH-2026-000001",
+        decimal amount = 350.50m
+        )
+    {
+        return new
+        {
+            reference,
+            type = "household",
+            startDate = "2026-02-01",
+            amount,
+            autoRenew = true,
+            policyholders = new[]
+           {
+                new
+                {
+                    firstName = "Anne",
+                    lastName = "Example",
+                    dateOfBirth = "1990-04-12"
+                }
+            },
+            property = new
+            {
+                addressLine1 = "1 Test Street",
+                addressLine2 = (string?)null,
+                addressLine3 = (string?)null,
+                postcode = "CH7 1AA"
+            },
+            payment = new
+            {
+                reference = "PAY-000001",
+                type = "directDebit",
+                cardNumber = (string?)null
+            }
+        };
+
+    }
+
+    [Fact]
+    public async Task Post_WithValidPolicy_ReturnsCreatedPolicyThatCanBeRetrieved()
+    {
+        await using var factory =
+            new PolicyServiceApiFactory();
+
+        await factory.InitialiseDatabaseAsync();
+
+        using var client = factory.CreateClient();
+        var request = CreateRequest();
+        var response = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        var headersLocation = response.Headers.Location;
+        var retrievalResponse = await client.GetAsync(headersLocation);
+
+        Assert.NotNull(headersLocation);
+
+        Assert.Equal("/policies/HH-2026-000001",
+        headersLocation.AbsolutePath);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
+
+        var createdPolicy = await response.Content
+            .ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(
+            "HH-2026-000001",
+            createdPolicy
+                .GetProperty("reference")
+                .GetString());
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            retrievalResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_WhenReferenceAlreadyExists_ReturnsConflictProblem()
+    {
+        await using var factory =
+            new PolicyServiceApiFactory();
+
+        await factory.InitialiseDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var request = CreateRequest();
+
+        var firstResponse = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            firstResponse.StatusCode);
+
+        var duplicateResponse = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            duplicateResponse.StatusCode);
+
+        Assert.Equal(
+            "application/problem+json",
+            duplicateResponse.Content.Headers.ContentType?.MediaType);
+
+        var problem = await duplicateResponse.Content
+            .ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(
+            "Policy reference conflict",
+            problem.GetProperty("title").GetString());
+
+        Assert.Equal(
+            "policy.reference.conflict",
+            problem.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Post_WithInvalidAmount_ReturnsValidationProblemWithoutSaving()
+    {
+        await using var factory =
+            new PolicyServiceApiFactory();
+
+        await factory.InitialiseDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var request = CreateRequest(amount: 0m);
+
+        var response = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content
+            .ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(
+            "Policy validation failed",
+            problem.GetProperty("title").GetString());
+
+        Assert.Equal(
+            "payment.amount.must_be_positive",
+            problem.GetProperty("code").GetString());
+
+        var retrievalResponse = await client.GetAsync(
+            "/policies/HH-2026-000001");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            retrievalResponse.StatusCode);
+    }
+
+}

@@ -30,6 +30,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 builder.Services.AddScoped<GetPolicyByReferenceHandler>();
 builder.Services.AddScoped<SellPolicyHandler>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
 var app = builder.Build();
 
