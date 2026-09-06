@@ -5,6 +5,7 @@ namespace PolicyService.Domain.Tests.Policies;
 public sealed class PolicyTests
 {
 
+    #region Policy Validation
     [Fact]
     public void Sell_WithValidDetails_CreatesOneYearPolicyAndOriginalPayment()
     {
@@ -215,6 +216,8 @@ public sealed class PolicyTests
             error.Message);
     }
 
+    #endregion
+    #region Luhn tests
     [Fact]
     public void Sell_WithValidCardNumber_ReturnsSuccessfulPolicy()
     {
@@ -240,5 +243,104 @@ public sealed class PolicyTests
             "payment.card_number.invalid",
             error.Code);
     }
+    #endregion
+
+    #region Cancellation
+    [Fact]
+    public void CalculateCancellationQuote_WhenBeforeStartDate_ReturnsFullRefund()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(365m)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value
+            .CalculateCancellationQuote(
+                startDate.AddDays(-1));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            365m,
+            result.Value.RefundAmount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(13)]
+    public void CalculateCancellationQuote_WhenWithinCoolingOffPeriod_ReturnsFullRefund(
+    int daysAfterStart)
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(365m)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value
+            .CalculateCancellationQuote(
+                startDate.AddDays(daysAfterStart));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            365m,
+            result.Value.RefundAmount);
+    }
+
+    [Fact]
+    public void CalculateCancellationQuote_OnFirstDayAfterCoolingOffPeriod_ReturnsProRataRefund()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(365m)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value
+            .CalculateCancellationQuote((
+                startDate.AddDays(14)));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            350m,
+            result.Value.RefundAmount);
+    }
+
+    [Fact]
+    public void CalculateCancellationQuote_WhenRefundIsHalfPenny_RoundsAwayFromZero()
+    {
+        var startDate = new DateOnly(2027, 3, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2027, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(2.01m)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value
+            .CalculateCancellationQuote(
+                startDate.AddDays(182));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            1.01m,
+            result.Value.RefundAmount);
+    }
+
+    #endregion
 
 }

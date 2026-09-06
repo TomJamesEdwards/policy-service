@@ -5,6 +5,7 @@ namespace PolicyService.Domain.Policies;
 public sealed class Policy
 {
     private const int MinimumPolicyholderAge = 16;
+    private const int CoolingOffPeriodDays = 14;
 
     private readonly List<Policyholder> _policyholders = [];
     private readonly List<Payment> _payments = [];
@@ -120,5 +121,41 @@ public sealed class Policy
             paymentResult.Value);
 
         return Result.Success(policy);
+    }
+
+    public Result<CancellationQuote> CalculateCancellationQuote(
+        DateOnly cancellationDate)
+    {
+        // The cooling off period is day zero, so days 0 to n-1 form
+        // the cooling off period (in this case n = 14). Addtionally
+        // this includes cancellations made before the policy starts.
+        var fullRefundPeriodEndExclusive =
+            StartDate.AddDays(CoolingOffPeriodDays);
+
+        if (cancellationDate < fullRefundPeriodEndExclusive)
+        {
+            return Result.Success(
+                new CancellationQuote(Amount));
+        }
+
+        // The policy covers both its start and end dates.
+        var totalPolicyDays =
+            EndDate.DayNumber - StartDate.DayNumber + 1;
+
+        // The cancellation date is treated as a day of used cover,
+        // so the refundable unused period begins the following day.
+        var unusedPolicyDays =
+            Math.Max(
+                EndDate.DayNumber - cancellationDate.DayNumber,
+                0);
+
+        // Refunds are monetary values, rounded explicitly to pennies.
+        var refundAmount = decimal.Round(
+            Amount * unusedPolicyDays / totalPolicyDays,
+            2,
+            MidpointRounding.AwayFromZero);
+
+        return Result.Success(
+            new CancellationQuote(refundAmount));
     }
 }
