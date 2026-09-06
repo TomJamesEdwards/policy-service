@@ -9,7 +9,9 @@ public sealed class SellPolicyEndpointTests
 {
     private static object CreateRequest(
         string reference = "HH-2026-000001",
-        decimal amount = 350.50m
+        decimal amount = 350.50m,
+        string paymentType = "directDebit",
+        string? cardNumber = null
         )
     {
         return new
@@ -38,8 +40,8 @@ public sealed class SellPolicyEndpointTests
             payment = new
             {
                 reference = "PAY-000001",
-                type = "directDebit",
-                cardNumber = (string?)null
+                type = paymentType,
+                cardNumber
             }
         };
 
@@ -170,6 +172,115 @@ public sealed class SellPolicyEndpointTests
         Assert.Equal(
             HttpStatusCode.NotFound,
             retrievalResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_WithInvalidCardNumber_ReturnsValidationProblemWithoutSaving()
+    {
+        await using var factory =
+            new PolicyServiceApiFactory();
+
+        await factory.InitialiseDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var request = CreateRequest(
+            paymentType: "card",
+            cardNumber: "4111111111111112");
+
+        var response = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problem = await response.Content
+            .ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(
+            "payment.card_number.invalid",
+            problem.GetProperty("code").GetString());
+
+        var retrievalResponse = await client.GetAsync(
+            "/policies/HH-2026-000001");
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            retrievalResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_WithValidCardNumber_DoesNotExposeCardNumber()
+    {
+        const string cardNumber = "4111111111111111";
+
+        await using var factory =
+            new PolicyServiceApiFactory();
+
+        await factory.InitialiseDatabaseAsync();
+
+        using var client = factory.CreateClient();
+
+        var request = CreateRequest(
+            paymentType: "card",
+            cardNumber: cardNumber);
+
+        var response = await client.PostAsJsonAsync(
+            "/policies",
+            request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
+
+        var createdJson =
+            await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(cardNumber, createdJson);
+
+        using (var document = JsonDocument.Parse(createdJson))
+        {
+            var payment = document.RootElement
+                .GetProperty("payments")[0];
+
+            Assert.Equal(
+                "card",
+                payment.GetProperty("type").GetString());
+
+            Assert.False(
+                payment.TryGetProperty(
+                    "cardNumber",
+                    out _));
+        }
+
+        var location = response.Headers.Location;
+
+        Assert.NotNull(location);
+
+        var retrievalResponse =
+            await client.GetAsync(location);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            retrievalResponse.StatusCode);
+
+        var retrievedJson =
+            await retrievalResponse.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(cardNumber, retrievedJson);
+
+        using var retrievedDocument =
+            JsonDocument.Parse(retrievedJson);
+
+        var retrievedPayment = retrievedDocument.RootElement
+            .GetProperty("payments")[0];
+
+        Assert.False(
+            retrievedPayment.TryGetProperty(
+                "cardNumber",
+                out _));
     }
 
 }
