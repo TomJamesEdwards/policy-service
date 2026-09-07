@@ -9,9 +9,15 @@ updates:
       time: "06:00"
       timezone: Europe/London
     groups:
-      github-actions:
+      nuget-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
+        update-types:
+        - major
+        - minor
+        - patch
+        group-by: dependency-name
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
