@@ -8,6 +8,7 @@ internal sealed class PolicySaleBuilder
     private DateOnly _today = new(2026, 9, 1);
     private DateOnly _startDate = new(2026, 10, 1);
     private bool _hasClaims;
+    private bool _autoRenew = true;
 
     private IReadOnlyCollection<Policyholder> _policyholders =
     [
@@ -96,13 +97,20 @@ internal sealed class PolicySaleBuilder
         return this;
     }
 
+    public PolicySaleBuilder WithAutoRenew(
+    bool autoRenew)
+    {
+        _autoRenew = autoRenew;
+        return this;
+    }
+
     public Result<Policy> Sell() =>
         Policy.Sell(
             reference: "HH-2026-000001",
             type: PolicyType.Household,
             startDate: _startDate,
             amount: _amount,
-            autoRenew: true,
+            autoRenew: _autoRenew,
             hasClaims: _hasClaims,
             policyholders: _policyholders,
             property: _insuredProperty,

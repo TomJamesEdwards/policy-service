@@ -15,9 +15,14 @@ internal sealed class PolicyServiceApiFactory
 {
     private readonly SqliteConnection _connection =
         new("Data Source=:memory:");
+    private readonly DateTimeOffset _utcNow;
 
-    internal PolicyServiceApiFactory()
+    internal PolicyServiceApiFactory(
+        DateTimeOffset? utcNow = null)
     {
+        _utcNow = utcNow
+            ?? new DateTimeOffset(2026, 1, 1, 0, 0, 0,
+            TimeSpan.Zero);
         _connection.Open();
     }
 
@@ -63,8 +68,7 @@ internal sealed class PolicyServiceApiFactory
             services.RemoveAll<TimeProvider>();
 
             services.AddSingleton<TimeProvider>(
-                new FixedTimeProvider(
-                    new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+                new FixedTimeProvider(_utcNow));
         });
     }
 

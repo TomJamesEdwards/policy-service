@@ -539,4 +539,223 @@ public sealed class PolicyTests
 
     #endregion
 
+    #region Renewal
+    [Fact]
+    public void Renew_WhenExactlyThirtyDaysBeforeEndDate_ExtendsPolicyByOneYear()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(new DateOnly(2026, 2, 1))
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+        var originalEndDate = policy.EndDate;
+        var renewalDate = originalEndDate.AddDays(-30);
+
+        var result = policy.Renew(
+            renewalDate,
+            paymentReference: "PAY-000002");
+
+        Assert.True(result.IsSuccess);
+        Assert.Same(policy, result.Value);
+
+        Assert.Equal(
+            originalEndDate.AddYears(1),
+            policy.EndDate);
+    }
+
+
+    [Fact]
+    public void Renew_WhenThirtyOneDaysBeforeEndDate_ReturnsTooEarlyWithoutChangingPolicy()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+        var originalEndDate = policy.EndDate;
+
+        var result = policy.Renew(
+            originalEndDate.AddDays(-31),
+            paymentReference: "PAY-000002");
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.renewal.too_early",
+            error.Code);
+
+        Assert.Equal(
+            originalEndDate,
+            policy.EndDate);
+
+        Assert.Single(policy.Payments);
+    }
+
+    [Fact]
+    public void Renew_WhenAfterEndDate_ReturnsFailureWithoutChangingPolicy()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+        var originalEndDate = policy.EndDate;
+
+        var result = policy.Renew(
+            originalEndDate.AddDays(1),
+            paymentReference: "PAY-000002");
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.renewal.after_expiry",
+            error.Code);
+
+        Assert.Equal(
+            originalEndDate,
+            policy.EndDate);
+
+        Assert.Single(policy.Payments);
+    }
+
+    [Fact]
+    public void Renew_WhenAutoRenewIsEnabled_CreatesPaymentUsingOriginalMethod()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .WithAmount(350.50m)
+            .WithPaymentType(PaymentType.DirectDebit)
+            .WithAutoRenew(true)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+
+        var result = policy.Renew(
+            policy.EndDate.AddDays(-30),
+            paymentReference: "PAY-000002");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, policy.Payments.Count);
+
+        var renewalPayment = policy.Payments[^1];
+
+        Assert.Equal(
+            "PAY-000002",
+            renewalPayment.Reference);
+
+        Assert.Equal(
+            PaymentType.DirectDebit,
+            renewalPayment.Type);
+
+        Assert.Equal(
+            350.50m,
+            renewalPayment.Amount);
+    }
+
+    [Fact]
+    public void Renew_WhenAutoRenewIsDisabled_ExtendsPolicyWithoutCreatingPayment()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .WithAutoRenew(false)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+        var originalEndDate = policy.EndDate;
+
+        var result = policy.Renew(
+            originalEndDate.AddDays(-30),
+            paymentReference: null);
+
+        Assert.True(result.IsSuccess);
+
+        Assert.Equal(
+            originalEndDate.AddYears(1),
+            policy.EndDate);
+
+        Assert.Single(policy.Payments);
+    }
+
+    [Fact]
+    public void Renew_WhenAutoRenewUsesCheque_ReturnsFailureWithoutChangingPolicy()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .WithAutoRenew(true)
+            .WithPaymentType(PaymentType.Cheque)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+        var originalEndDate = policy.EndDate;
+
+        var result = policy.Renew(
+            originalEndDate.AddDays(-30),
+            paymentReference: "PAY-000002");
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.renewal.cheque_not_supported",
+            error.Code);
+
+        Assert.Equal(
+            originalEndDate,
+            policy.EndDate);
+
+        Assert.Single(policy.Payments);
+    }
+
+    [Fact]
+    public void Renew_WhenPolicyIsCancelled_ReturnsFailureWithoutChangingPolicy()
+    {
+        var policyResult = new PolicySaleBuilder()
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+
+        var cancellationResult = policy.Cancel(
+            policy.StartDate.AddDays(-1),
+            refundReference: "REFUND-000001");
+
+        Assert.True(cancellationResult.IsSuccess);
+
+        var originalEndDate = policy.EndDate;
+
+        var renewalResult = policy.Renew(
+            originalEndDate.AddDays(-30),
+            paymentReference: "PAY-000002");
+
+        Assert.True(renewalResult.IsFailure);
+
+        var error = Assert.Single(
+            renewalResult.Errors);
+
+        Assert.Equal(
+            "policy.renewal.cancelled",
+            error.Code);
+
+        Assert.Equal(
+            originalEndDate,
+            policy.EndDate);
+
+        Assert.Single(policy.Payments);
+    }
+    #endregion
+
 }

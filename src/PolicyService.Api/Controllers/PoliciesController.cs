@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using PolicyService.Application.Policies.Cancel;
 using PolicyService.Api.Contracts.Policies;
 using PolicyService.Application.Policies.GetByReference;
+using PolicyService.Application.Policies.Renew;
 using PolicyService.Application.Policies.Sell;
 
 namespace PolicyService.Api.Controllers;
@@ -13,19 +14,23 @@ public sealed class PoliciesController : ControllerBase
     private readonly GetPolicyByReferenceHandler _getByReferenceHandler;
     private readonly SellPolicyHandler _sellHandler;
     private readonly CancelPolicyHandler _cancelHandler;
+    private readonly RenewPolicyHandler _renewHandler;
 
     public PoliciesController(
         GetPolicyByReferenceHandler getByReferenceHandler,
         SellPolicyHandler sellHandler,
-        CancelPolicyHandler cancelPolicyHandler)
+        CancelPolicyHandler cancelPolicyHandler,
+        RenewPolicyHandler renewPolicyHandler)
     {
         ArgumentNullException.ThrowIfNull(getByReferenceHandler);
         ArgumentNullException.ThrowIfNull(sellHandler);
         ArgumentNullException.ThrowIfNull(cancelPolicyHandler);
+        ArgumentNullException.ThrowIfNull(renewPolicyHandler);
 
         _getByReferenceHandler = getByReferenceHandler;
         _sellHandler = sellHandler;
         _cancelHandler = cancelPolicyHandler;
+        _renewHandler = renewPolicyHandler;
     }
 
     [HttpGet("{reference}")]
@@ -179,6 +184,66 @@ public sealed class PoliciesController : ControllerBase
                 _ => (
                     StatusCodes.Status400BadRequest,
                     "Policy cancellation failed")
+            };
+
+            return Problem(
+                statusCode: statusCode,
+                title: title,
+                detail: error.Message,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = error.Code
+                });
+        }
+
+        return Ok(
+            PolicyResponse.FromDomain(result.Value));
+    }
+
+    [HttpPost("{reference}/renewal")]
+    [ProducesResponseType(
+    typeof(PolicyResponse),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PolicyResponse>> Renew(
+    string reference,
+    RenewPolicyRequest request,
+    CancellationToken cancellationToken)
+    {
+        var command = new RenewPolicyCommand(
+            Reference: reference,
+            PaymentReference: request.PaymentReference,
+            CardNumber: request.CardNumber);
+
+        var result = await _renewHandler
+            .Handle(command, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result.IsFailure)
+        {
+            var error = result.Errors.Single();
+
+            var (statusCode, title) = error.Code switch
+            {
+                "policy.not_found" => (
+                    StatusCodes.Status404NotFound,
+                    "Policy not found"),
+
+                "policy.renewal.cancelled" => (
+                    StatusCodes.Status409Conflict,
+                    "Policy renewal conflict"),
+
+                _ => (
+                    StatusCodes.Status400BadRequest,
+                    "Policy renewal failed")
             };
 
             return Problem(

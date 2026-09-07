@@ -6,6 +6,7 @@ public sealed class Policy
 {
     private const int MinimumPolicyholderAge = 16;
     private const int CoolingOffPeriodDays = 14;
+    private const int RenewalWindowDays = 30;
 
     private readonly List<Policyholder> _policyholders = [];
     private readonly List<Payment> _payments = [];
@@ -130,6 +131,71 @@ public sealed class Policy
             paymentResult.Value);
 
         return Result.Success(policy);
+    }
+
+    public Result<Policy> Renew(
+    DateOnly renewalDate,
+    string? paymentReference,
+    string? cardNumber = null)
+    {
+        if (Status == PolicyStatus.Cancelled)
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.CancelledPolicyCannotBeRenewed);
+        }
+
+        var renewalWindowStart =
+            EndDate.AddDays(-RenewalWindowDays);
+
+        if (renewalDate < renewalWindowStart)
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.RenewalTooEarly);
+        }
+
+        if (renewalDate > EndDate)
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.RenewalAfterExpiry);
+        }
+
+        Payment? renewalPayment = null;
+
+        if (AutoRenew)
+        {
+            if (OriginalPayment.Type == PaymentType.Cheque)
+            {
+                return Result.Failure<Policy>(
+                    PolicyErrors.ChequeNotSupportedForAutoRenewal);
+            }
+
+            var paymentResult = Payment.Create(
+                paymentReference,
+                OriginalPayment.Type,
+                Amount,
+                cardNumber);
+
+            if (paymentResult.IsFailure)
+            {
+                return Result.Failure<Policy>(
+                    paymentResult.Errors);
+            }
+
+            renewalPayment = paymentResult.Value;
+        }
+
+        var renewedEndDate = EndDate.AddYears(1);
+
+        // Apply state changes only after every renewal rule and
+        // payment validation has succeeded.
+        EndDate = renewedEndDate;
+
+        if (renewalPayment is not null)
+        {
+            _payments.Add(renewalPayment);
+        }
+
+        return Result.Success(this);
     }
 
     public Result<CancellationQuote> CalculateCancellationQuote(

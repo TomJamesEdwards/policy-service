@@ -118,4 +118,71 @@ public sealed class PolicyDbContextTests
             refund.Amount);
     }
 
+    [Fact]
+    public async Task MigrateAndReload_WithRenewedPolicy_PreservesRenewal()
+    {
+        await using var connection = new SqliteConnection(
+            "Data Source=:memory:");
+
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<PolicyDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var context = new PolicyDbContext(options);
+
+        await context.Database.MigrateAsync();
+
+        var policy = PolicyTestData.CreateValid();
+
+        context.Policies.Add(policy);
+        await context.SaveChangesAsync();
+
+        context.ChangeTracker.Clear();
+
+        var trackedPolicy = await context.Policies
+            .SingleAsync(candidate =>
+                candidate.Reference == policy.Reference);
+
+        var originalEndDate = trackedPolicy.EndDate;
+
+        var renewalResult = trackedPolicy.Renew(
+            originalEndDate.AddDays(-30),
+            paymentReference: "PAY-000002");
+
+        Assert.True(renewalResult.IsSuccess);
+
+        await context.SaveChangesAsync();
+
+        context.ChangeTracker.Clear();
+
+        var reloadedPolicy = await context.Policies
+            .SingleAsync(candidate =>
+                candidate.Reference == policy.Reference);
+
+        Assert.Equal(
+            originalEndDate.AddYears(1),
+            reloadedPolicy.EndDate);
+
+        Assert.Equal(
+            2,
+            reloadedPolicy.Payments.Count);
+
+        var renewalPayment =
+            reloadedPolicy.Payments[^1];
+
+        Assert.Equal(
+            "PAY-000002",
+            renewalPayment.Reference);
+
+        Assert.Equal(
+            PaymentType.DirectDebit,
+            renewalPayment.Type);
+
+        Assert.Equal(
+            policy.Amount,
+            renewalPayment.Amount);
+    }
+
 }
