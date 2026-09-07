@@ -7,6 +7,42 @@ namespace PolicyService.Infrastructure.Persistence.Configurations;
 internal sealed class PolicyConfiguration
     : IEntityTypeConfiguration<Policy>
 {
+
+    private static void ConfigureRefund(
+        EntityTypeBuilder<Policy> builder)
+    {
+        builder.OwnsOne(
+            policy => policy.Refund,
+            refund =>
+            {
+                refund.ToTable("Refunds");
+
+                refund.WithOwner()
+                    .HasForeignKey("PolicyReference");
+
+                refund.Property<string>("PolicyReference")
+                    .HasMaxLength(50);
+
+                refund.HasKey("PolicyReference");
+
+                refund.Property(value => value.Reference)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                refund.Property(value => value.Type)
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                refund.Property(value => value.Amount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+            });
+
+        builder.Navigation(policy => policy.Refund)
+            .IsRequired(false);
+    }
+
     public void Configure(EntityTypeBuilder<Policy> builder)
     {
         builder.ToTable("Policies");
@@ -38,9 +74,19 @@ internal sealed class PolicyConfiguration
         builder.Property(policy => policy.HasClaims)
             .IsRequired();
 
+        builder.Property(policy => policy.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(PolicyStatus.Active)
+            .IsRequired();
+
+        builder.Property(policy => policy.CancellationDate);
+
         ConfigureProperty(builder);
         ConfigurePolicyholders(builder);
         ConfigurePayments(builder);
+        ConfigureRefund(builder);
+
     }
 
     private static void ConfigureProperty(

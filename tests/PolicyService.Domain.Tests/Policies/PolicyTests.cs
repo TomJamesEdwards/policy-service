@@ -341,6 +341,202 @@ public sealed class PolicyTests
             result.Value.RefundAmount);
     }
 
+    [Fact]
+    public void Cancel_WhenPolicyIsActive_ChangesStatusAndRecordsCancellationDate()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+        var cancellationDate = startDate.AddDays(-1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+
+        var result = policy.Cancel(
+            cancellationDate,
+            refundReference: "REF-000001");
+
+        Assert.True(result.IsSuccess);
+        Assert.Same(policy, result.Value);
+        Assert.Equal(
+            PolicyStatus.Cancelled,
+            policy.Status);
+        Assert.Equal(
+            cancellationDate,
+            policy.CancellationDate);
+    }
+
+    [Fact]
+    public void Cancel_WhenBeforeStartDate_CreatesFullRefundUsingOriginalPaymentMethod()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(365m)
+            .WithPaymentType(PaymentType.Cheque)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value.Cancel(
+            startDate.AddDays(-1),
+            "REFUND-000001");
+
+        Assert.True(result.IsSuccess);
+
+        var refund = Assert.IsType<Refund>(
+            result.Value.Refund);
+
+        Assert.Equal(
+            "REFUND-000001",
+            refund.Reference);
+
+        Assert.Equal(
+            PaymentType.Cheque,
+            refund.Type);
+
+        Assert.Equal(
+            365m,
+            refund.Amount);
+    }
+
+    [Fact]
+    public void Cancel_WhenPolicyIsAlreadyCancelled_ReturnsFailureAndPreservesExistingCancellation()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+        var firstCancellationDate = startDate.AddDays(-1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+
+        var firstResult = policy.Cancel(
+            firstCancellationDate,
+            "REFUND-000001");
+
+        Assert.True(firstResult.IsSuccess);
+
+        var secondResult = policy.Cancel(
+            startDate,
+            "REFUND-000002");
+
+        Assert.True(secondResult.IsFailure);
+
+        var error = Assert.Single(
+            secondResult.Errors);
+
+        Assert.Equal(
+            "policy.already_cancelled",
+            error.Code);
+
+        Assert.Equal(
+            firstCancellationDate,
+            policy.CancellationDate);
+
+        Assert.Equal(
+            "REFUND-000001",
+            policy.Refund?.Reference);
+    }
+
+    [Fact]
+    public void CalculateCancellationQuote_WhenPolicyHasClaims_ReturnsNoRefund()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithAmount(365m)
+            .WithClaims()
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value
+            .CalculateCancellationQuote(
+                startDate.AddDays(30));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            0m,
+            result.Value.RefundAmount);
+    }
+
+    [Fact]
+    public void Cancel_WhenPolicyHasClaims_CancelsWithoutCreatingRefund()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+        var cancellationDate = startDate.AddDays(30);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .WithClaims()
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var result = policyResult.Value.Cancel(
+            cancellationDate,
+            refundReference: null);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            PolicyStatus.Cancelled,
+            result.Value.Status);
+
+        Assert.Equal(
+            cancellationDate,
+            result.Value.CancellationDate);
+
+        Assert.Null(result.Value.Refund);
+    }
+
+    [Fact]
+    public void Cancel_WhenRefundIsDueAndReferenceIsMissing_ReturnsFailureWithoutChangingPolicy()
+    {
+        var startDate = new DateOnly(2026, 2, 1);
+
+        var policyResult = new PolicySaleBuilder()
+            .WithToday(new DateOnly(2026, 1, 1))
+            .WithStartDate(startDate)
+            .Sell();
+
+        Assert.True(policyResult.IsSuccess);
+
+        var policy = policyResult.Value;
+
+        var result = policy.Cancel(
+            startDate.AddDays(-1),
+            refundReference: null);
+
+        Assert.True(result.IsFailure);
+
+        var error = Assert.Single(result.Errors);
+
+        Assert.Equal(
+            "policy.refund_reference.required",
+            error.Code);
+
+        Assert.Equal(
+            PolicyStatus.Active,
+            policy.Status);
+
+        Assert.Null(policy.CancellationDate);
+        Assert.Null(policy.Refund);
+    }
+
     #endregion
 
 }

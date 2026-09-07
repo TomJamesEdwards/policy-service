@@ -60,4 +60,62 @@ public sealed class PolicyDbContextTests
         Assert.Equal(350.50m, payment.Amount);
     }
 
+    [Fact]
+    public async Task MigrateAndReload_WithCancelledPolicy_PreservesCancellation()
+    {
+        await using var connection = new SqliteConnection(
+            "Data Source=:memory:");
+
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<PolicyDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var context = new PolicyDbContext(options);
+
+        await context.Database.MigrateAsync();
+
+        var policy = PolicyTestData.CreateValid();
+        var cancellationDate = policy.StartDate.AddDays(-1);
+
+        var cancellationResult = policy.Cancel(
+            cancellationDate,
+            "REFUND-000001");
+
+        Assert.True(cancellationResult.IsSuccess);
+
+        context.Policies.Add(policy);
+        await context.SaveChangesAsync();
+
+        context.ChangeTracker.Clear();
+
+        var reloadedPolicy = await context.Policies
+            .SingleAsync(candidate =>
+                candidate.Reference == policy.Reference);
+
+        Assert.Equal(
+            PolicyStatus.Cancelled,
+            reloadedPolicy.Status);
+
+        Assert.Equal(
+            cancellationDate,
+            reloadedPolicy.CancellationDate);
+
+        var refund = Assert.IsType<Refund>(
+            reloadedPolicy.Refund);
+
+        Assert.Equal(
+            "REFUND-000001",
+            refund.Reference);
+
+        Assert.Equal(
+            policy.OriginalPayment.Type,
+            refund.Type);
+
+        Assert.Equal(
+            policy.Amount,
+            refund.Amount);
+    }
+
 }

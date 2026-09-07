@@ -7,6 +7,7 @@ internal sealed class PolicySaleBuilder
 {
     private DateOnly _today = new(2026, 9, 1);
     private DateOnly _startDate = new(2026, 10, 1);
+    private bool _hasClaims;
 
     private IReadOnlyCollection<Policyholder> _policyholders =
     [
@@ -80,6 +81,21 @@ internal sealed class PolicySaleBuilder
         return this;
     }
 
+    public PolicySaleBuilder WithPaymentType(
+    PaymentType paymentType)
+    {
+        _paymentType = paymentType;
+
+        return this;
+    }
+
+    public PolicySaleBuilder WithClaims()
+    {
+        _hasClaims = true;
+
+        return this;
+    }
+
     public Result<Policy> Sell() =>
         Policy.Sell(
             reference: "HH-2026-000001",
@@ -87,7 +103,7 @@ internal sealed class PolicySaleBuilder
             startDate: _startDate,
             amount: _amount,
             autoRenew: true,
-            hasClaims: false,
+            hasClaims: _hasClaims,
             policyholders: _policyholders,
             property: _insuredProperty,
             paymentReference: "PAY-000001",

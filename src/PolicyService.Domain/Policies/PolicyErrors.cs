@@ -15,4 +15,12 @@ internal static class PolicyErrors
     public static DomainError PolicyholderBelowMinimumAge { get; } = new(
         Code: "policy.policyholders.minimum_age",
         Message: "All policyholders must be at least 16 on the policy start date.");
+
+    public static DomainError RefundReferenceRequired { get; } = new(
+        Code: "policy.refund_reference.required",
+        Message: "A refund reference is required.");
+
+    public static DomainError AlreadyCancelled { get; } = new(
+        Code: "policy.already_cancelled",
+        Message: "The policy has already been cancelled.");
 }

@@ -61,6 +61,15 @@ public sealed class Policy
     public IReadOnlyList<Payment> Payments =>
         _payments.AsReadOnly();
 
+    public PolicyStatus Status { get; private set; } =
+    PolicyStatus.Active;
+
+    public DateOnly? CancellationDate { get; private set; }
+
+    public Refund? Refund { get; private set; }
+
+    public Payment OriginalPayment => Payments[0];
+
     public static Result<Policy> Sell(
         string reference,
         PolicyType type,
@@ -124,11 +133,18 @@ public sealed class Policy
     }
 
     public Result<CancellationQuote> CalculateCancellationQuote(
-        DateOnly cancellationDate)
+    DateOnly cancellationDate)
     {
-        // The cooling off period is day zero, so days 0 to n-1 form
-        // the cooling off period (in this case n = 14). Addtionally
-        // this includes cancellations made before the policy starts.
+        // A claim removes entitlement to a refund, regardless of
+        // when the cancellation occurs.
+        if (HasClaims)
+        {
+            return Result.Success(
+                new CancellationQuote(0m));
+        }
+
+        // Cancellations before cover begins, or on policy days 0–13,
+        // fall within the full-refund period.
         var fullRefundPeriodEndExclusive =
             StartDate.AddDays(CoolingOffPeriodDays);
 
@@ -142,14 +158,13 @@ public sealed class Policy
         var totalPolicyDays =
             EndDate.DayNumber - StartDate.DayNumber + 1;
 
-        // The cancellation date is treated as a day of used cover,
-        // so the refundable unused period begins the following day.
-        var unusedPolicyDays =
-            Math.Max(
-                EndDate.DayNumber - cancellationDate.DayNumber,
-                0);
+        // The cancellation date is used cover cover; refundable unused cover
+        // therefore begins on the following day.
+        var unusedPolicyDays = Math.Max(
+            EndDate.DayNumber - cancellationDate.DayNumber,
+            0);
 
-        // Refunds are monetary values, rounded explicitly to pennies.
+        // Monetary refunds are explicitly rounded to two decimal places.
         var refundAmount = decimal.Round(
             Amount * unusedPolicyDays / totalPolicyDays,
             2,
@@ -158,4 +173,47 @@ public sealed class Policy
         return Result.Success(
             new CancellationQuote(refundAmount));
     }
+
+    public Result<Policy> Cancel(
+        DateOnly cancellationDate,
+        string? refundReference)
+    {
+        if (Status == PolicyStatus.Cancelled)
+        {
+            return Result.Failure<Policy>(
+                PolicyErrors.AlreadyCancelled);
+        }
+
+        var quoteResult =
+            CalculateCancellationQuote(cancellationDate);
+
+        if (quoteResult.IsFailure)
+        {
+            return Result.Failure<Policy>(
+                quoteResult.Errors);
+        }
+
+        Refund? refund = null;
+
+        if (quoteResult.Value.RefundAmount > 0m)
+        {
+            if (string.IsNullOrWhiteSpace(refundReference))
+            {
+                return Result.Failure<Policy>(
+                    PolicyErrors.RefundReferenceRequired);
+            }
+
+            refund = new Refund(
+                refundReference,
+                OriginalPayment.Type,
+                quoteResult.Value.RefundAmount);
+        }
+
+        Status = PolicyStatus.Cancelled;
+        CancellationDate = cancellationDate;
+        Refund = refund;
+
+        return Result.Success(this);
+    }
+
 }
