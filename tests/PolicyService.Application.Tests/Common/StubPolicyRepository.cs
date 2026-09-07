@@ -20,6 +20,8 @@ internal sealed class StubPolicyRepository : IPolicyRepository
 
     internal bool AddWasCalled => AddedPolicy is not null;
 
+    internal bool SaveChangesWasCalled { get; private set; }
+
     public Task<Policy?> GetByReferenceAsync(
         string reference,
         CancellationToken cancellationToken)
@@ -39,6 +41,21 @@ internal sealed class StubPolicyRepository : IPolicyRepository
         CancellationToken cancellationToken)
     {
         AddedPolicy = policy;
+
+        return Task.CompletedTask;
+    }
+
+    public Task<Policy?> GetByReferenceForUpdateAsync(
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(_policy);
+    }
+
+    public Task SaveChangesAsync(
+        CancellationToken cancellationToken)
+    {
+        SaveChangesWasCalled = true;
 
         return Task.CompletedTask;
     }

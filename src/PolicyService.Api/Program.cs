@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using PolicyService.Application.Policies.Cancel;
 using PolicyService.Application.Policies.GetByReference;
 using PolicyService.Application.Policies.Sell;
 using PolicyService.Infrastructure;
@@ -31,6 +32,7 @@ builder.Services.AddInfrastructure(connectionString);
 
 builder.Services.AddScoped<GetPolicyByReferenceHandler>();
 builder.Services.AddScoped<SellPolicyHandler>();
+builder.Services.AddScoped<CancelPolicyHandler>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
 var app = builder.Build();

@@ -10,6 +10,9 @@ public sealed record PolicyResponse(
     decimal Amount,
     bool AutoRenew,
     bool HasClaims,
+    PolicyStatus Status,
+    DateOnly? CancellationDate,
+    RefundResponse? Refund,
     IReadOnlyCollection<PolicyholderResponse> Policyholders,
     InsuredPropertyResponse Property,
     IReadOnlyCollection<PaymentResponse> Payments)
@@ -26,6 +29,14 @@ public sealed record PolicyResponse(
             policy.Amount,
             policy.AutoRenew,
             policy.HasClaims,
+            policy.Status,
+            policy.CancellationDate,
+            policy.Refund is null
+                ? null
+                : new RefundResponse(
+                    policy.Refund.Reference,
+                    policy.Refund.Type,
+                    policy.Refund.Amount),
             policy.Policyholders
                 .Select(policyholder =>
                     new PolicyholderResponse(

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using PolicyService.Application.Policies.Cancel;
 using PolicyService.Api.Contracts.Policies;
 using PolicyService.Application.Policies.GetByReference;
 using PolicyService.Application.Policies.Sell;
@@ -11,16 +12,20 @@ public sealed class PoliciesController : ControllerBase
 {
     private readonly GetPolicyByReferenceHandler _getByReferenceHandler;
     private readonly SellPolicyHandler _sellHandler;
+    private readonly CancelPolicyHandler _cancelHandler;
 
     public PoliciesController(
         GetPolicyByReferenceHandler getByReferenceHandler,
-        SellPolicyHandler sellHandler)
+        SellPolicyHandler sellHandler,
+        CancelPolicyHandler cancelPolicyHandler)
     {
         ArgumentNullException.ThrowIfNull(getByReferenceHandler);
         ArgumentNullException.ThrowIfNull(sellHandler);
+        ArgumentNullException.ThrowIfNull(cancelPolicyHandler);
 
         _getByReferenceHandler = getByReferenceHandler;
         _sellHandler = sellHandler;
+        _cancelHandler = cancelPolicyHandler;
     }
 
     [HttpGet("{reference}")]
@@ -129,5 +134,64 @@ public sealed class PoliciesController : ControllerBase
                 reference = result.Value.Reference
             },
             response);
+    }
+
+    [HttpPost("{reference}/cancellation")]
+    [ProducesResponseType(
+    typeof(PolicyResponse),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PolicyResponse>> Cancel(
+    string reference,
+    CancelPolicyRequest request,
+    CancellationToken cancellationToken)
+    {
+        var command = new CancelPolicyCommand(
+            Reference: reference,
+            RefundReference: request.RefundReference);
+
+        var result = await _cancelHandler
+            .Handle(command, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result.IsFailure)
+        {
+            var error = result.Errors.Single();
+
+            var (statusCode, title) = error.Code switch
+            {
+                "policy.not_found" => (
+                    StatusCodes.Status404NotFound,
+                    "Policy not found"),
+
+                "policy.already_cancelled" => (
+                    StatusCodes.Status409Conflict,
+                    "Policy cancellation conflict"),
+
+                _ => (
+                    StatusCodes.Status400BadRequest,
+                    "Policy cancellation failed")
+            };
+
+            return Problem(
+                statusCode: statusCode,
+                title: title,
+                detail: error.Message,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = error.Code
+                });
+        }
+
+        return Ok(
+            PolicyResponse.FromDomain(result.Value));
     }
 }

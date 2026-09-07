@@ -5,14 +5,14 @@ namespace PolicyService.Domain.Policies;
 internal static class PaymentErrors
 {
     internal static readonly DomainError AmountMustBePositive = new(
-        "payment.amount.must_be_positive",
-        "Payment amount must be greater than zero.");
+        Code: "payment.amount.must_be_positive",
+        Message: "Payment amount must be greater than zero.");
 
     internal static readonly DomainError ReferenceRequired = new(
-    "payment.reference.required",
-    "Payment reference is required.");
+        Code: "payment.reference.required",
+        Message: "Payment reference is required.");
 
     internal static readonly DomainError InvalidCardNumber = new(
-    "payment.card_number.invalid",
-    "Card number is invalid.");
+        Code: "payment.card_number.invalid",
+        Message: "Card number is invalid.");
 }

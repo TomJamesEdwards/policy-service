@@ -15,4 +15,11 @@ public interface IPolicyRepository
     Task AddAsync(
         Policy policy,
         CancellationToken cancellationToken);
+
+    Task<Policy?> GetByReferenceForUpdateAsync(
+    string reference,
+    CancellationToken cancellationToken);
+
+    Task SaveChangesAsync(
+        CancellationToken cancellationToken);
 }

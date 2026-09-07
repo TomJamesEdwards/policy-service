@@ -1,40 +1,12 @@
 using PolicyService.Application.Abstractions.Persistence;
 using PolicyService.Application.Policies.GetByReference;
+using PolicyService.Application.Tests.Common;
 using PolicyService.Domain.Policies;
 
 namespace PolicyService.Application.Tests.Policies.GetByReference;
 
 public sealed class GetPolicyByReferenceHandlerTests
 {
-    private sealed class StubPolicyRepository : IPolicyRepository
-    {
-        private readonly Policy? _policy;
-        internal StubPolicyRepository(Policy? policy)
-        {
-            _policy = policy;
-        }
-
-        public Task<Policy?> GetByReferenceAsync(
-            string reference,
-            CancellationToken cancellationToken)
-        {
-            return Task.FromResult(_policy);
-        }
-
-        public Task<bool> ReferenceExistsAsync(
-            string reference,
-            CancellationToken cancellationToken)
-        {
-            return Task.FromResult(false);
-        }
-
-        public Task AddAsync(
-            Policy policy,
-            CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-    }
     private static Policy CreatePolicy()
     {
         var property = InsuredProperty.Create(

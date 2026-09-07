@@ -39,10 +39,26 @@ public sealed class PolicyRepository : IPolicyRepository
         Policy policy,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(policy);
-
         _context.Policies.Add(policy);
 
+        await SaveChangesAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public Task<Policy?> GetByReferenceForUpdateAsync(
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        return _context.Policies
+            .AsTracking()
+            .SingleOrDefaultAsync(
+                policy => policy.Reference == reference,
+                cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(
+        CancellationToken cancellationToken)
+    {
         await _context
             .SaveChangesAsync(cancellationToken)
             .ConfigureAwait(false);
