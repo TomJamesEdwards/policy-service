@@ -10,6 +10,9 @@ namespace PolicyService.Api.Controllers;
 
 [ApiController]
 [Route("policies")]
+[ProducesResponseType(
+    typeof(ProblemDetails),
+    StatusCodes.Status500InternalServerError)]
 public sealed class PoliciesController : ControllerBase
 {
     private readonly GetPolicyByReferenceHandler _getByReferenceHandler;
