@@ -9,20 +9,20 @@ public sealed class SellPolicyEndpointTests
 {
     private static object CreateRequest(
         string reference = "HH-2026-000001",
+        string type = "household",
         decimal amount = 350.50m,
         string paymentType = "directDebit",
-        string? cardNumber = null
-        )
+        string? cardNumber = null)
     {
         return new
         {
             reference,
-            type = "household",
+            type,
             startDate = "2026-02-01",
             amount,
             autoRenew = true,
             policyholders = new[]
-           {
+               {
                 new
                 {
                     firstName = "Anne",
@@ -47,44 +47,66 @@ public sealed class SellPolicyEndpointTests
 
     }
 
-    [Fact]
-    public async Task Post_WithValidPolicy_ReturnsCreatedPolicyThatCanBeRetrieved()
+    [Theory]
+    [InlineData("household", "HH-2026-000001")]
+    [InlineData("buyToLet", "BTL-2026-000001")]
+    public async Task Post_WithSupportedPolicyType_ReturnsCreatedPolicyThatCanBeRetrieved(
+        string type,
+        string reference)
     {
-        await using var factory =
-            new PolicyServiceApiFactory();
+        await using var factory = new PolicyServiceApiFactory();
 
         await factory.InitialiseDatabaseAsync();
 
         using var client = factory.CreateClient();
-        var request = CreateRequest();
+
+        var request = CreateRequest(
+            reference: reference,
+            type: type);
+
         var response = await client.PostAsJsonAsync(
             "/policies",
             request);
-
-        var headersLocation = response.Headers.Location;
-        var retrievalResponse = await client.GetAsync(headersLocation);
-
-        Assert.NotNull(headersLocation);
-
-        Assert.Equal("/policies/HH-2026-000001",
-        headersLocation.AbsolutePath);
 
         Assert.Equal(
             HttpStatusCode.Created,
             response.StatusCode);
 
+        var location = response.Headers.Location;
+
+        Assert.NotNull(location);
+
+        Assert.Equal(
+            $"/policies/{reference}",
+            location.AbsolutePath);
+
         var createdPolicy = await response.Content
             .ReadFromJsonAsync<JsonElement>();
 
         Assert.Equal(
-            "HH-2026-000001",
-            createdPolicy
-                .GetProperty("reference")
-                .GetString());
+            reference,
+            createdPolicy.GetProperty("reference").GetString());
+
+        Assert.Equal(
+            type,
+            createdPolicy.GetProperty("type").GetString());
+
+        var retrievalResponse = await client.GetAsync(location);
 
         Assert.Equal(
             HttpStatusCode.OK,
             retrievalResponse.StatusCode);
+
+        var retrievedPolicy = await retrievalResponse.Content
+            .ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(
+            reference,
+            retrievedPolicy.GetProperty("reference").GetString());
+
+        Assert.Equal(
+            type,
+            retrievedPolicy.GetProperty("type").GetString());
     }
 
     [Fact]
