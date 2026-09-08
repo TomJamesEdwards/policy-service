@@ -1,6 +1,162 @@
-@PolicyService.Api_HostAddress = http://localhost:5201
+@host = http://localhost:5201
+@cancellablePolicy = HH-DEBUG-000001
+@renewablePolicy = HH-DEBUG-000002
 
-GET {{PolicyService.Api_HostAddress}}/weatherforecast/
+### OpenAPI document
+
+GET {{host}}/openapi/v1.json
 Accept: application/json
 
-###
+### Liveness
+
+GET {{host}}/health/live
+Accept: application/json
+
+### Database readiness
+
+GET {{host}}/health/ready
+Accept: application/json
+
+### Missing policy — expect 404
+
+GET {{host}}/policies/DOES-NOT-EXIST
+Accept: application/json
+
+### Sell a future policy — expect 201
+
+POST {{host}}/policies
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reference": "{{cancellablePolicy}}",
+  "type": "household",
+  "startDate": "2026-10-01",
+  "amount": 350.50,
+  "autoRenew": true,
+  "policyholders": [
+    {
+      "firstName": "Thomas",
+      "lastName": "Edwards",
+      "dateOfBirth": "1990-01-01"
+    }
+  ],
+  "property": {
+    "addressLine1": "1 Test Street",
+    "addressLine2": null,
+    "addressLine3": null,
+    "postcode": "CH5 1AA"
+  },
+  "payment": {
+    "reference": "PAY-DEBUG-000001",
+    "type": "directDebit",
+    "cardNumber": null
+  }
+}
+
+### Retrieve the sold policy — expect 200
+
+GET {{host}}/policies/{{cancellablePolicy}}
+Accept: application/json
+
+### Cancel before cover starts — expect 200 and full refund
+
+POST {{host}}/policies/{{cancellablePolicy}}/cancellation
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refundReference": "REF-DEBUG-000001"
+}
+
+### Repeat cancellation — expect 409
+
+POST {{host}}/policies/{{cancellablePolicy}}/cancellation
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refundReference": "REF-DEBUG-000002"
+}
+
+### Sell a policy currently inside its renewal window — expect 201
+# Renewal is time-dependent. Adjust startDate so the calculated end date
+# falls between today and 30 days from today.
+
+POST {{host}}/policies
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reference": "{{renewablePolicy}}",
+  "type": "household",
+  "startDate": "2025-10-01",
+  "amount": 480.00,
+  "autoRenew": true,
+  "policyholders": [
+    {
+      "firstName": "Thomas",
+      "lastName": "Edwards",
+      "dateOfBirth": "1990-01-01"
+    }
+  ],
+  "property": {
+    "addressLine1": "2 Test Street",
+    "addressLine2": null,
+    "addressLine3": null,
+    "postcode": "CH5 1AB"
+  },
+  "payment": {
+    "reference": "PAY-DEBUG-000002",
+    "type": "directDebit",
+    "cardNumber": null
+  }
+}
+
+### Renew the policy — expect 200
+
+POST {{host}}/policies/{{renewablePolicy}}/renewal
+Content-Type: application/json
+Accept: application/json
+
+{
+  "paymentReference": "PAY-DEBUG-RENEWAL-000002",
+  "cardNumber": null
+}
+
+### Retrieve the renewed policy
+
+GET {{host}}/policies/{{renewablePolicy}}
+Accept: application/json
+
+### Invalid card number — expect 400
+
+POST {{host}}/policies
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reference": "HH-DEBUG-INVALID-CARD",
+  "type": "household",
+  "startDate": "2026-10-01",
+  "amount": 275.00,
+  "autoRenew": false,
+  "policyholders": [
+    {
+      "firstName": "Thomas",
+      "lastName": "Edwards",
+      "dateOfBirth": "1990-01-01"
+    }
+  ],
+  "property": {
+    "addressLine1": "3 Test Street",
+    "addressLine2": null,
+    "addressLine3": null,
+    "postcode": "CH5 1AC"
+  },
+  "payment": {
+    "reference": "PAY-DEBUG-INVALID-CARD",
+    "type": "card",
+    "cardNumber": "4111111111111112"
+  }
+}
