@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using PolicyService.Application.Policies.Cancel;
 using PolicyService.Api.Contracts.Policies;
+using PolicyService.Api.Logging;
+using PolicyService.Application.Policies.Cancel;
 using PolicyService.Application.Policies.GetByReference;
 using PolicyService.Application.Policies.Renew;
 using PolicyService.Application.Policies.Sell;
@@ -15,22 +16,26 @@ public sealed class PoliciesController : ControllerBase
     private readonly SellPolicyHandler _sellHandler;
     private readonly CancelPolicyHandler _cancelHandler;
     private readonly RenewPolicyHandler _renewHandler;
+    private readonly ILogger<PoliciesController> _logger;
 
     public PoliciesController(
         GetPolicyByReferenceHandler getByReferenceHandler,
         SellPolicyHandler sellHandler,
         CancelPolicyHandler cancelPolicyHandler,
-        RenewPolicyHandler renewPolicyHandler)
+        RenewPolicyHandler renewPolicyHandler,
+        ILogger<PoliciesController> logger)
     {
         ArgumentNullException.ThrowIfNull(getByReferenceHandler);
         ArgumentNullException.ThrowIfNull(sellHandler);
         ArgumentNullException.ThrowIfNull(cancelPolicyHandler);
         ArgumentNullException.ThrowIfNull(renewPolicyHandler);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _getByReferenceHandler = getByReferenceHandler;
         _sellHandler = sellHandler;
         _cancelHandler = cancelPolicyHandler;
         _renewHandler = renewPolicyHandler;
+        _logger = logger;
     }
 
     [HttpGet("{reference}")]
@@ -129,6 +134,12 @@ public sealed class PoliciesController : ControllerBase
                 });
         }
 
+        PolicyLogMessages.PolicySold(
+            _logger,
+            result.Value.Reference,
+            result.Value.Type,
+            HttpContext.TraceIdentifier);
+
         var response = PolicyResponse.FromDomain(
             result.Value);
 
@@ -196,6 +207,11 @@ public sealed class PoliciesController : ControllerBase
                 });
         }
 
+        PolicyLogMessages.PolicyCancelled(
+            _logger,
+            result.Value.Reference,
+            HttpContext.TraceIdentifier);
+
         return Ok(
             PolicyResponse.FromDomain(result.Value));
     }
@@ -255,6 +271,12 @@ public sealed class PoliciesController : ControllerBase
                     ["code"] = error.Code
                 });
         }
+
+        PolicyLogMessages.PolicyRenewed(
+            _logger,
+            result.Value.Reference,
+            result.Value.EndDate,
+            HttpContext.TraceIdentifier);
 
         return Ok(
             PolicyResponse.FromDomain(result.Value));

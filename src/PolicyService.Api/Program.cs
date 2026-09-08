@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using PolicyService.Api.ExceptionHandling;
 using PolicyService.Application.Policies.Cancel;
 using PolicyService.Application.Policies.GetByReference;
 using PolicyService.Application.Policies.Renew;
@@ -27,6 +28,7 @@ builder.Services
     });
 
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
 
 builder.Services.AddInfrastructure(connectionString);
@@ -38,6 +40,8 @@ builder.Services.AddScoped<RenewPolicyHandler>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
